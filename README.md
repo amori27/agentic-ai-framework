@@ -22,7 +22,7 @@ A comprehensive framework for building agentic AI systems with multi-agent orche
 ## Installation
 
 ```bash
-git clone https://github.com/AmirAsaad/agentic-ai-framework.git
+git clone https://github.com/amori27/agentic-ai-framework.git
 cd agentic-ai-framework
 pip install -r requirements.txt
 ```
