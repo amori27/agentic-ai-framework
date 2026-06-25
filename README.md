@@ -1,4 +1,6 @@
 # Agentic AI Framework
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 
 Multi-agent system framework for building autonomous AI agents that can collaborate, delegate tasks, and execute complex workflows with tool use and memory.
 
