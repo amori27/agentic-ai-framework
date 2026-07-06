@@ -3,6 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![Code style: Ruff](https://img.shields.io/badge/code%20style-ruff-red.svg)](https://github.com/astral-sh/ruff)
+[![CI](https://github.com/amori27/agentic-ai-framework/actions/workflows/ci.yml/badge.svg)](https://github.com/amori27/agentic-ai-framework/actions/workflows/ci.yml)
 
 A lightweight Python framework for building autonomous AI agents with tool use, planning, and multi-agent coordination. Designed for clarity and easy extension — no vendor lock-in, no heavy dependencies.
 
@@ -89,6 +90,22 @@ agentic-ai-framework/
 │   ├── agent.py          # Base Agent class
 │   ├── tool.py           # Tool definition + registry
 │   └── multi_agent.py    # AgentTeam coordinator
+├── tests/
+│   └── test_example.py   # Placeholder tests
+├── docs/
+│   └── index.md          # Documentation index
+├── .github/
+│   ├── workflows/
+│   │   └── ci.yml        # GitHub Actions CI
+│   ├── ISSUE_TEMPLATE/
+│   │   ├── bug_report.md
+│   │   └── feature_request.md
+│   └── PULL_REQUEST_TEMPLATE.md
+├── .env.example
+├── CONTRIBUTING.md
+├── CHANGELOG.md
+├── SECURITY.md
+├── CODE_OF_CONDUCT.md
 ├── requirements.txt
 ├── LICENSE               # MIT
 └── README.md
