@@ -1,11 +1,19 @@
 """Agent Module.
 
 This module provides the base Agent class with tool use,
-reasoning, and action capabilities.
+reasoning, and action capabilities. Supports both synchronous
+and asynchronous tool execution.
 """
 
-from typing import Any, Callable
+import asyncio
+import inspect
+from typing import Any, Awaitable, Callable, Union
 from dataclasses import dataclass
+
+
+SyncCallable = Callable[..., str]
+AsyncCallable = Callable[..., Awaitable[str]]
+ToolFunction = Union[SyncCallable, AsyncCallable]
 
 
 @dataclass
@@ -13,7 +21,11 @@ class Tool:
     """Represents a tool that an agent can use."""
     name: str
     description: str
-    function: Callable[..., str]
+    function: ToolFunction
+
+
+def _is_coroutine(func: ToolFunction) -> bool:
+    return inspect.iscoroutinefunction(func)
 
 
 class Agent:
@@ -24,16 +36,8 @@ class Agent:
         name: str,
         role: str,
         tools: list[Tool] | None = None,
-        memory_enabled: bool = True
+        memory_enabled: bool = True,
     ):
-        """Initialize the Agent.
-
-        Args:
-            name: Agent name.
-            role: Agent role/description.
-            tools: List of tools available to agent.
-            memory_enabled: Whether to enable memory.
-        """
         self.name = name
         self.role = role
         self.tools = tools or []
@@ -41,97 +45,88 @@ class Agent:
         self.history: list[dict[str, str]] = []
 
     def add_tool(self, tool: Tool) -> None:
-        """Add a tool to the agent.
-
-        Args:
-            tool: Tool to add.
-        """
         self.tools.append(tool)
 
     def think(self, prompt: str) -> str:
-        """Process a prompt and generate a response.
-
-        Args:
-            prompt: Input prompt.
-
-        Returns:
-            Generated response.
-        """
         system_prompt = f"You are {self.name}, a {self.role}."
-
         if self.tools:
-            system_prompt += f"\n\nYou have access to these tools: "
+            system_prompt += "\n\nYou have access to these tools: "
             for tool in self.tools:
                 system_prompt += f"\n- {tool.name}: {tool.description}"
-
         return f"[{self.name}] Processed: {prompt}"
 
+    async def think_async(self, prompt: str) -> str:
+        return self.think(prompt)
+
     def act(self, action: str) -> str:
-        """Execute an action.
-
-        Args:
-            action: Action description.
-
-        Returns:
-            Action result.
-        """
         return f"[{self.name}] Action result: {action}"
 
+    async def act_async(self, action: str) -> str:
+        return self.act(action)
+
     def use_tool(self, tool_name: str, **kwargs: Any) -> str:
-        """Use a specific tool.
-
-        Args:
-            tool_name: Name of the tool to use.
-            **kwargs: Arguments for the tool.
-
-        Returns:
-            Tool execution result.
-        """
         for tool in self.tools:
             if tool.name == tool_name:
-                return tool.function(**kwargs)
-
+                result = tool.function(**kwargs)
+                if _is_coroutine(tool.function):
+                    raise RuntimeError(
+                        f"Tool '{tool_name}' is async. Use 'await use_tool_async()' instead."
+                    )
+                return result
         return f"Tool '{tool_name}' not found"
 
+    async def use_tool_async(self, tool_name: str, **kwargs: Any) -> str:
+        for tool in self.tools:
+            if tool.name == tool_name:
+                if _is_coroutine(tool.function):
+                    return await tool.function(**kwargs)
+                return tool.function(**kwargs)
+        return f"Tool '{tool_name}' not found"
+
+    async def use_tools_parallel_async(
+        self, calls: list[tuple[str, dict[str, Any]]]
+    ) -> list[str]:
+        tasks = [self.use_tool_async(name, **kw) for name, kw in calls]
+        return list(await asyncio.gather(*tasks))
+
     def run(self, task: str) -> str:
-        """Run a task through think-act-observe loop.
-
-        Args:
-            task: Task description.
-
-        Returns:
-            Task result.
-        """
         thought = self.think(task)
-
         self.history.append({
             "task": task,
             "thought": thought,
             "action": None,
-            "observation": None
+            "observation": None,
         })
-
         action_result = self.act(task)
-
         self.history.append({
             "task": task,
             "thought": thought,
             "action": action_result,
-            "observation": "Task completed"
+            "observation": "Task completed",
         })
+        return action_result
 
+    async def run_async(self, task: str) -> str:
+        thought = await self.think_async(task)
+        self.history.append({
+            "task": task,
+            "thought": thought,
+            "action": None,
+            "observation": None,
+        })
+        action_result = await self.act_async(task)
+        self.history.append({
+            "task": task,
+            "thought": thought,
+            "action": action_result,
+            "observation": "Task completed",
+        })
         return action_result
 
     def get_history(self) -> list[dict[str, str]]:
-        """Get agent's execution history.
-
-        Returns:
-            List of history entries.
-        """
         return self.history
 
     def clear_history(self) -> None:
-        """Clear agent's history."""
         self.history.clear()
 
 
@@ -139,42 +134,15 @@ class ReasoningAgent(Agent):
     """Agent with chain-of-thought reasoning capabilities."""
 
     def __init__(self, name: str, role: str, tools: list[Tool] | None = None):
-        """Initialize the ReasoningAgent.
-
-        Args:
-            name: Agent name.
-            role: Agent role.
-            tools: Available tools.
-        """
         super().__init__(name, role, tools)
 
     def think(self, prompt: str) -> str:
-        """Generate reasoning steps.
-
-        Args:
-            prompt: Input prompt.
-
-        Returns:
-            Reasoning chain.
-        """
         return f"[{self.name}] Reasoning about: {prompt}"
 
 
 def create_react_agent(
     name: str,
     role: str,
-    tools: list[Tool]
+    tools: list[Tool],
 ) -> Agent:
-    """Create a ReAct-style agent.
-
-    Args:
-        name: Agent name.
-        role: Agent role.
-        tools: Available tools.
-
-    Returns:
-        Configured ReAct agent.
-    """
-    agent = Agent(name=name, role=role, tools=tools)
-
-    return agent
+    return Agent(name=name, role=role, tools=tools)
